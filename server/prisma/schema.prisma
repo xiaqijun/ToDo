@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  avatarUrl    String?  @map("avatar_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  createdTasks     Task[]          @relation("TaskCreator")
+  assignedTasks    Task[]          @relation("TaskAssignee")
+  notifications    Notification[]
+  teamMemberships  TeamMember[]
+
+  @@map("users")
+}
+
+model Task {
+  id             String    @id @default(uuid())
+  title          String
+  description    String?
+  status         String    @default("pending")
+  importance     String    @default("medium")
+  urgency        String    @default("medium")
+  parentId       String?   @map("parent_id")
+  startAt        DateTime? @map("start_at")
+  dueAt          DateTime? @map("due_at")
+  remindAt       String?   @map("remind_at")
+  isRecurring    Boolean   @default(false) @map("is_recurring")
+  recurrenceRule Json?     @map("recurrence_rule")
+  assigneeId     String?   @map("assignee_id")
+  creatorId      String    @map("creator_id")
+  teamId         String?   @map("team_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  parent    Task?    @relation("Subtasks", fields: [parentId], references: [id])
+  subtasks  Task[]   @relation("Subtasks")
+  assignee  User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator   User     @relation("TaskCreator", fields: [creatorId], references: [id])
+  team      Team?    @relation(fields: [teamId], references: [id])
+  notifications Notification[]
+
+  @@index([creatorId])
+  @@index([assigneeId])
+  @@index([teamId])
+  @@index([parentId])
+  @@index([status])
+  @@map("tasks")
+}
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members TeamMember[]
+  tasks   Task[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId   String   @map("team_id")
+  userId   String   @map("user_id")
+  role     String   @default("member")
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@map("team_members")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  taskId    String    @map("task_id")
+  type      String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notifications")
+}
