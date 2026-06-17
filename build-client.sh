@@ -12,7 +12,7 @@ fi
 
 echo "📦 构建 TodoFlow 客户端..."
 cd client
-npm install
+npm install --no-audit --no-fund
 npm run build
 
 # 编译 Electron 主进程
