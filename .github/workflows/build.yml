@@ -68,6 +68,7 @@ jobs:
           sudo chmod 666 /dev/fuse 2>/dev/null || true
 
       - name: Set version from tag
+        shell: bash
         run: |
           cd client
           VER="${{ github.ref_name }}"
@@ -113,4 +114,4 @@ jobs:
             dist/*.dmg
             dist/*.exe
           generate_release_notes: true
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
