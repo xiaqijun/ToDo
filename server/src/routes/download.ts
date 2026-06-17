@@ -20,94 +20,121 @@ interface DownloadItem {
   url: string;
   size: string;
   icon: string;
-  source: 'local' | 'github';
 }
 
 const PLATFORMS = [
   { label: 'Windows', ext: '.exe', icon: '🪟' },
-  { label: 'macOS', ext: '.dmg', icon: '🍎' },
-  { label: 'Linux', ext: '.AppImage', icon: '🐧' },
+  { label: 'macOS',   ext: '.dmg', icon: '🍎' },
+  { label: 'Linux',   ext: '.AppImage', icon: '🐧' },
 ];
 
-// Cache GitHub Releases response for 5 minutes
-interface CachedAsset { name: string; url: string; size: string }
-let ghCache: { assets: CachedAsset[]; ts: number } | null = null;
-const GH_CACHE_TTL = 5 * 60_000; // 5 min
+// ── Background sync: pull installer files from GitHub Releases ──
 
-async function getGitHubAssets(): Promise<CachedAsset[]> {
-  const now = Date.now();
-  if (ghCache && (now - ghCache.ts) < GH_CACHE_TTL) return ghCache.assets;
+interface ReleaseAsset { name: string; browser_download_url: string; size: number }
 
-  const resp = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-    {
-      headers: {
-        'User-Agent': 'TodoFlow-Server',
-        Accept: 'application/vnd.github+json',
-      },
-      signal: AbortSignal.timeout(15_000),
+let lastTag = '';          // latest release tag we've synced
+let syncing = false;       // mutex — only one sync at a time
+
+async function syncFromGitHub(): Promise<void> {
+  if (syncing) return;
+  syncing = true;
+  try {
+    // 1. Fetch latest release metadata
+    const resp = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+      {
+        headers: {
+          'User-Agent': 'TodoFlow-Server',
+          Accept: 'application/vnd.github+json',
+        },
+        signal: AbortSignal.timeout(30_000),
+      }
+    );
+    if (!resp.ok) { console.error('[download] GitHub API error:', resp.status); return; }
+
+    const release = await resp.json() as any;
+    const tag = release.tag_name as string;
+    if (tag === lastTag) return; // already synced this release
+
+    const assets: ReleaseAsset[] = release.assets || [];
+
+    for (const plat of PLATFORMS) {
+      // Find the asset matching this platform's extension
+      const asset = assets.find((a: ReleaseAsset) => a.name.endsWith(plat.ext));
+      if (!asset) continue;
+
+      const dest = path.join(downloadsDir, asset.name);
+
+      // Skip if already downloaded
+      if (fs.existsSync(dest)) {
+        const stat = fs.statSync(dest);
+        // Accept if file size is close enough (±1 KB)
+        if (Math.abs(stat.size - asset.size) < 1024) continue;
+        // Otherwise delete and re-download
+        fs.unlinkSync(dest);
+      }
+
+      // 2. Download the file
+      console.log(`[download] Fetching ${asset.name} …`);
+      const dl = await fetch(asset.browser_download_url, {
+        signal: AbortSignal.timeout(300_000), // 5 min per file
+      });
+      if (!dl.ok) { console.error(`[download] Failed to fetch ${asset.name}: ${dl.status}`); continue; }
+
+      const buf = Buffer.from(await dl.arrayBuffer());
+      fs.writeFileSync(dest, buf);
+      console.log(`[download] Cached ${asset.name} (${formatSize(asset.size)})`);
     }
-  );
 
-  if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
-  const release = await resp.json() as any;
-  const assets: CachedAsset[] = (release.assets || []).map((a: any) => ({
-    name: a.name as string,
-    url: a.browser_download_url as string,
-    size: formatSize(a.size as number),
-  }));
-  ghCache = { assets, ts: now };
-  return assets;
+    // Clean up stale files from older releases
+    const keep = new Set(assets.map((a: ReleaseAsset) => a.name));
+    for (const f of fs.readdirSync(downloadsDir)) {
+      if (!keep.has(f) && PLATFORMS.some(p => f.endsWith(p.ext))) {
+        fs.unlinkSync(path.join(downloadsDir, f));
+        console.log(`[download] Removed stale ${f}`);
+      }
+    }
+
+    lastTag = tag;
+    console.log(`[download] Synced to ${tag}`);
+  } catch (err: any) {
+    if (err?.name === 'AbortError' || err?.code === 'UND_ERR_CONNECT_TIMEOUT') {
+      console.error('[download] GitHub API / download timeout');
+    } else {
+      console.error('[download] Sync error:', err);
+    }
+  } finally {
+    syncing = false;
+  }
 }
 
-// Download page (async handler)
-router.get('/', async (_req: Request, res: Response) => {
+// Initial sync on startup, then every 30 minutes
+syncFromGitHub();
+const syncTimer = setInterval(syncFromGitHub, 30 * 60_000);
+
+// ── Download page ──
+
+router.get('/', (_req: Request, res: Response) => {
   const items: DownloadItem[] = [];
 
-  // 1. Local files
-  try {
-    for (const f of fs.readdirSync(downloadsDir)) {
-      const rule = PLATFORMS.find(r => f.endsWith(r.ext));
-      if (rule) {
-        const stat = fs.statSync(path.join(downloadsDir, f));
-        items.push({
-          name: `${rule.label} (${f})`,
-          url: `/download/files/${encodeURIComponent(f)}`,
-          size: formatSize(stat.size),
-          icon: rule.icon,
-          source: 'local',
-        });
-      }
+  for (const f of fs.readdirSync(downloadsDir)) {
+    const rule = PLATFORMS.find(r => f.endsWith(r.ext));
+    if (rule) {
+      const stat = fs.statSync(path.join(downloadsDir, f));
+      items.push({
+        name: `${rule.label} (${f})`,
+        url: `/download/files/${encodeURIComponent(f)}`,
+        size: formatSize(stat.size),
+        icon: rule.icon,
+      });
     }
-  } catch { /* empty */ }
-
-  // 2. GitHub Releases (proxy, with 5-min cache)
-  const seen = new Set(items.map(i => i.icon));
-  try {
-    const ghAssets = await getGitHubAssets();
-    for (const asset of ghAssets) {
-      const rule = PLATFORMS.find(r => asset.name.endsWith(r.ext));
-      if (rule && !seen.has(rule.icon)) {
-        items.push({
-          name: `${rule.label} (${asset.name}) — GitHub`,
-          url: asset.url,
-          size: asset.size,
-          icon: rule.icon,
-          source: 'github',
-        });
-        seen.add(rule.icon);
-      }
-    }
-  } catch {
-    // GitHub API unreachable, just show local files
   }
 
-  // Render
   const links = items.length > 0
     ? items.map(a =>
-        `<a href="${a.url}" class="link"><span>${a.icon}</span><div><strong>${a.name}</strong><br><small>${a.size} · ${a.source === 'github' ? 'GitHub Releases' : '本地'}</small></div><span class="arrow">↓</span></a>`
+        `<a href="${a.url}" class="link"><span>${a.icon}</span><div><strong>${a.name}</strong><br><small>${a.size} · 本地缓存</small></div><span class="arrow">↓</span></a>`
       ).join('')
-    : '<p class="empty">暂无安装包。<br>推送代码后 GitHub Actions 会自动构建。</p>';
+    : '<p class="empty">暂无安装包。<br>服务端正从 GitHub Releases 同步，请稍后刷新。</p>';
 
   res.send(`<!DOCTYPE html>
 <html lang="zh-CN">
