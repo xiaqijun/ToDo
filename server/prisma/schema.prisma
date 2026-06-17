@@ -26,14 +26,14 @@ model User {
 model Task {
   id             String    @id @default(uuid())
   title          String
-  description    String?
+  description    String?   @db.Text
   status         String    @default("pending")
   importance     String    @default("medium")
   urgency        String    @default("medium")
   parentId       String?   @map("parent_id")
   startAt        DateTime? @map("start_at")
   dueAt          DateTime? @map("due_at")
-  remindAt       String?   @map("remind_at")
+  remindAt       DateTime? @map("remind_at")
   isRecurring    Boolean   @default(false) @map("is_recurring")
   recurrenceRule Json?     @map("recurrence_rule")
   assigneeId     String?   @map("assignee_id")
