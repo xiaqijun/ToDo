@@ -2,7 +2,7 @@
   "name": "todoflow-client",
   "version": "1.0.0",
   "private": true,
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
