@@ -29,6 +29,37 @@ const PLATFORMS = [
   { label: 'Linux', ext: '.AppImage', icon: '🐧' },
 ];
 
+// Cache GitHub Releases response for 5 minutes
+interface CachedAsset { name: string; url: string; size: string }
+let ghCache: { assets: CachedAsset[]; ts: number } | null = null;
+const GH_CACHE_TTL = 5 * 60_000; // 5 min
+
+async function getGitHubAssets(): Promise<CachedAsset[]> {
+  const now = Date.now();
+  if (ghCache && (now - ghCache.ts) < GH_CACHE_TTL) return ghCache.assets;
+
+  const resp = await fetch(
+    `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+    {
+      headers: {
+        'User-Agent': 'TodoFlow-Server',
+        Accept: 'application/vnd.github+json',
+      },
+      signal: AbortSignal.timeout(15_000),
+    }
+  );
+
+  if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
+  const release = await resp.json() as any;
+  const assets: CachedAsset[] = (release.assets || []).map((a: any) => ({
+    name: a.name as string,
+    url: a.browser_download_url as string,
+    size: formatSize(a.size as number),
+  }));
+  ghCache = { assets, ts: now };
+  return assets;
+}
+
 // Download page (async handler)
 router.get('/', async (_req: Request, res: Response) => {
   const items: DownloadItem[] = [];
@@ -50,34 +81,21 @@ router.get('/', async (_req: Request, res: Response) => {
     }
   } catch { /* empty */ }
 
-  // 2. GitHub Releases (proxy)
+  // 2. GitHub Releases (proxy, with 5-min cache)
   const seen = new Set(items.map(i => i.icon));
   try {
-    const resp = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-      {
-        headers: {
-          'User-Agent': 'TodoFlow-Server',
-          Accept: 'application/vnd.github+json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }
-    );
-
-    if (resp.ok) {
-      const release = await resp.json() as any;
-      for (const asset of (release.assets || [])) {
-        const rule = PLATFORMS.find(r => (asset.name as string).endsWith(r.ext));
-        if (rule && !seen.has(rule.icon)) {
-          items.push({
-            name: `${rule.label} (${asset.name}) — GitHub`,
-            url: asset.browser_download_url,
-            size: formatSize(asset.size),
-            icon: rule.icon,
-            source: 'github',
-          });
-          seen.add(rule.icon);
-        }
+    const ghAssets = await getGitHubAssets();
+    for (const asset of ghAssets) {
+      const rule = PLATFORMS.find(r => asset.name.endsWith(r.ext));
+      if (rule && !seen.has(rule.icon)) {
+        items.push({
+          name: `${rule.label} (${asset.name}) — GitHub`,
+          url: asset.url,
+          size: asset.size,
+          icon: rule.icon,
+          source: 'github',
+        });
+        seen.add(rule.icon);
       }
     }
   } catch {
