@@ -59,7 +59,13 @@ jobs:
 
       - name: Install Linux deps
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils libatspi2.0-0 libsecret-1-0 libasound2t64
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 \
+            xdg-utils libatspi2.0-0 libsecret-1-0 libasound2t64 libfuse2 xvfb
+          # Verify fuse is available
+          ls -la /dev/fuse || true
+          sudo chmod 666 /dev/fuse 2>/dev/null || true
 
       - name: Build Electron
         run: |
@@ -77,7 +83,7 @@ jobs:
           path: server/downloads/
 
   release:
-    if: (!cancelled()) && startsWith(github.ref, 'refs/tags/')
+    if: always() && startsWith(github.ref, 'refs/tags/')
     needs: package
     runs-on: ubuntu-latest
     permissions:
@@ -86,9 +92,19 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: TodoFlow-*
+          merge-multiple: true
+
+      - name: List files
+        run: find dist -type f -ls
 
       - uses: softprops/action-gh-release@v2
         with:
           name: TodoFlow ${{ github.ref_name }}
-          files: dist/**/*
+          files: |
+            dist/*.AppImage
+            dist/*.dmg
+            dist/*.exe
+            dist/*.zip
           generate_release_notes: true
+          fail_on_unmatched_files: false
