@@ -5,9 +5,11 @@ import { config } from './config';
 import authRoutes from './routes/auth';
 import taskRoutes from './routes/tasks';
 import { errorHandler } from './middleware/errorHandler';
+import { setupSocket } from './socket';
 
 const app = express();
 const server = createServer(app);
+setupSocket(server);
 
 app.use(cors({ origin: config.clientUrl, credentials: true }));
 app.use(express.json());

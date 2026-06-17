@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { AppError } from './auth';
+import { getIO } from '../socket';
 
 const prisma = new PrismaClient();
 
@@ -85,6 +86,7 @@ export class TaskService {
       include: TASK_INCLUDE,
     });
 
+    this.emitTaskEvent('created', task, data.teamId);
     return this.applyUrgencyUpgrade(task);
   }
 
@@ -116,6 +118,7 @@ export class TaskService {
       include: TASK_INCLUDE,
     });
 
+    this.emitTaskEvent('updated', updated, data.teamId);
     return this.applyUrgencyUpgrade(updated);
   }
 
@@ -126,6 +129,8 @@ export class TaskService {
     // Delete subtasks first, then the parent
     await prisma.task.deleteMany({ where: { parentId: id } });
     await prisma.task.delete({ where: { id } });
+
+    this.emitTaskEvent('deleted', task);
   }
 
   async toggleComplete(id: string) {
@@ -138,6 +143,29 @@ export class TaskService {
       data: { status: newStatus },
       include: TASK_INCLUDE,
     });
+  }
+
+  private emitTaskEvent(action: string, task: any, teamId?: string) {
+    const io = getIO();
+    if (!io) return;
+
+    const payload = { type: action, task };
+
+    const users = new Set<string>();
+    if (task.creatorId) users.add(task.creatorId);
+    if (task.assigneeId) users.add(task.assigneeId);
+    if (task.subtasks) {
+      task.subtasks.forEach((st: any) => {
+        if (st.assigneeId) users.add(st.assigneeId);
+      });
+    }
+
+    users.forEach(uid => io.to(`user:${uid}`).emit('task:updated', payload));
+
+    const targetTeamId = teamId || task.teamId;
+    if (targetTeamId) {
+      io.to(`team:${targetTeamId}`).emit('task:updated', payload);
+    }
   }
 
   // Smart urgency upgrade based on due date proximity
