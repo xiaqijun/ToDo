@@ -4,3 +4,7 @@ dist/
 *.log
 dist-electron/
 .superpowers/
+
+# compiled JS (tsc output alongside source)
+client/src/**/*.js
+client/electron/*.js
