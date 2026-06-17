@@ -5,3 +5,4 @@ dist-electron/
 *.log
 .superpowers/
 package-lock.json
+server/downloads/

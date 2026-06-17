@@ -19,5 +19,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/prisma ./prisma
 
+RUN mkdir -p /app/downloads
+
 EXPOSE 3001
 CMD ["node", "dist/index.js"]

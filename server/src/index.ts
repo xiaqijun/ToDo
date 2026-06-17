@@ -7,6 +7,7 @@ import taskRoutes from './routes/tasks';
 import teamRoutes from './routes/teams';
 import notificationRoutes from './routes/notifications';
 import userRoutes from './routes/users';
+import downloadRoutes from './routes/download';
 import { errorHandler } from './middleware/errorHandler';
 import { setupSocket } from './socket';
 import { startReminderScheduler } from './services/reminder';
@@ -23,6 +24,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
+app.use('/download', downloadRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

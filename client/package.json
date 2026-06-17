@@ -29,5 +29,33 @@
     "typescript": "^5.6.0",
     "vite": "^6.0.0",
     "wait-on": "^8.0.0"
+  },
+  "build": {
+    "appId": "com.todoflow.app",
+    "productName": "TodoFlow",
+    "directories": {
+      "output": "../server/downloads",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": null
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": null
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
