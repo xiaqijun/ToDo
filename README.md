@@ -21,12 +21,14 @@
 
 ## 快速开始
 
-### 1. 准备环境
+### 本地开发
+
+**1. 准备环境**
 
 - Node.js >= 18
 - PostgreSQL >= 14
 
-### 2. 启动服务端
+**2. 启动服务端**
 
 ```bash
 cd server
@@ -36,7 +38,7 @@ npx prisma migrate dev  # 初始化数据库表
 npm run dev             # 启动服务端 http://localhost:3001
 ```
 
-### 3. 启动客户端
+**3. 启动客户端**
 
 ```bash
 cd client
@@ -44,6 +46,25 @@ npm install
 npm run dev            # 浏览器开发模式 http://localhost:5173
 npm run electron:dev   # Electron 桌面模式（需要先启动服务端）
 ```
+
+### 部署到服务器 (Docker)
+
+```bash
+# 1. 在服务器上克隆项目
+git clone <repo-url> && cd todoflow
+
+# 2. 配置环境变量
+cp server/.env.production.example server/.env
+# 编辑 server/.env，设置 JWT_SECRET 和 DB_PASSWORD
+
+# 3. 启动
+docker compose up -d
+
+# 4. 查看日志
+docker compose logs -f server
+```
+
+服务端启动后，客户端连接地址改为服务器 IP：在 `client/.env` 中设置 `VITE_API_URL=http://<服务器IP>:3001`
 
 ## 项目结构
 

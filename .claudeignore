@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist-electron/
+.env
+*.log
+.superpowers/
+package-lock.json
