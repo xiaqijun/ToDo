@@ -43,7 +43,22 @@ echo "  DB_PASSWORD=$DB_PASSWORD"
 # 3. 拉取镜像并启动
 echo -e "${YELLOW}[3/3] 启动服务...${NC}"
 docker compose pull 2>/dev/null || docker compose build
-docker compose up -d
+docker compose up -d db
+
+# 等数据库就绪
+echo "  等待数据库..."
+sleep 5
+
+# 用临时容器跑数据库迁移（用完即删）
+echo "  执行数据库迁移..."
+docker run --rm --network host \
+  -e DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@127.0.0.1:5432/todoflow" \
+  -v "$(pwd)/server/prisma:/app/prisma" \
+  node:20-alpine \
+  sh -c "cd /app && npx prisma migrate deploy --schema=prisma/schema.prisma"
+
+# 启动服务端
+docker compose up -d server
 
 # 结果
 sleep 3
