@@ -49,6 +49,14 @@ npm run electron:dev   # Electron 桌面模式（需要先启动服务端）
 
 ### 部署到服务器 (Docker)
 
+**一键安装（全新服务器）：**
+
+```bash
+git clone <repo-url> && cd todoflow && bash install.sh
+```
+
+**手动部署：**
+
 ```bash
 # 1. 在服务器上克隆项目
 git clone <repo-url> && cd todoflow
