@@ -64,18 +64,47 @@ docker compose up -d --build
 echo ""
 echo -e "${YELLOW}📦 构建客户端安装包...${NC}"
 
+# 安装 Node.js
 if ! command -v node &>/dev/null; then
   echo "  安装 Node.js 20..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash - 2>/dev/null
-  apt-get install -y nodejs 2>/dev/null || true
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt-get install -y nodejs
 fi
 
+# 安装 electron-builder Linux 依赖
+echo "  → 安装系统依赖..."
+apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
+  libatspi2.0-0 libsecret-1-0 libasound2t64 2>/dev/null || \
+apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
+  libatspi2.0-0 libsecret-1-0 libasound2 2>/dev/null || true
+
 cd client
-npm install --no-audit --no-fund 2>/dev/null
-npm run build 2>/dev/null
-npx tsc --outDir dist-electron 2>/dev/null
-npx electron-builder --linux --publish=never 2>&1 | tail -3
+
+echo "  → npm install..."
+npm install --no-audit --no-fund
+
+echo "  → vite build..."
+npm run build
+
+echo "  → tsc electron..."
+npx tsc --outDir dist-electron
+
+echo "  → electron-builder --linux..."
+npx electron-builder --linux --publish=never
+BUILD_OK=$?
+
 cd ..
+
+# 检查构建产物
+echo ""
+echo "  下载目录内容:"
+ls -lh server/downloads/ 2>/dev/null || echo "  (目录为空)"
+
+if [ -f server/downloads/*.AppImage ] 2>/dev/null || ls server/downloads/*.AppImage 2>/dev/null; then
+  echo -e "  ${GREEN}✅ AppImage 构建成功${NC}"
+elif [ $BUILD_OK -ne 0 ]; then
+  echo -e "  ${RED}electron-builder 构建失败 (exit $BUILD_OK)${NC}"
+fi
 
 # --------------------------------------------------
 # 结果
@@ -86,9 +115,14 @@ if docker compose ps 2>/dev/null | grep -q "Up"; then
   echo -e "${GREEN}✅ 部署完成${NC}"
   echo ""
   echo -e "  📡 服务:     ${YELLOW}http://$IP:3001${NC}"
-  echo -e "  📥 下载:     ${YELLOW}http://$IP:3001/download${NC}"
+  echo -e "  📥 客户端:   ${YELLOW}http://$IP:3001/download${NC}"
   echo ""
-  ls -lh server/downloads/*.AppImage 2>/dev/null && echo -e "  ${GREEN}✅ 安装包已就绪${NC}" || echo "  ${RED}⚠ 安装包构建失败，查看上方日志${NC}"
+  if ls server/downloads/*.AppImage 2>/dev/null; then
+    echo -e "  ${GREEN}✅ 客户端安装包已就绪${NC}"
+  else
+    echo -e "  ${YELLOW}⚠ 客户端安装包未生成，在服务器上手动运行:${NC}"
+    echo -e "     ${YELLOW}cd client && npx electron-builder --linux${NC}"
+  fi
   echo ""
   echo -e "  管理: docker compose logs -f | restart | down"
 else
