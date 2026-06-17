@@ -5,6 +5,7 @@ import fs from 'fs';
 
 const router = Router();
 const downloadsDir = path.join(__dirname, '../../downloads');
+const GITHUB_REPO = 'xiaqijun/ToDo';
 
 // Ensure downloads directory exists
 if (!fs.existsSync(downloadsDir)) {
@@ -14,40 +15,81 @@ if (!fs.existsSync(downloadsDir)) {
 // Serve static download files
 router.use('/files', express.static(downloadsDir));
 
-// Download page
-router.get('/', (_req: Request, res: Response) => {
-  const platformRules: { label: string; ext: string; icon: string }[] = [
-    { label: 'Windows', ext: '.exe', icon: '🪟' },
-    { label: 'macOS', ext: '.dmg', icon: '🍎' },
-    { label: 'Linux', ext: '.AppImage', icon: '🐧' },
-  ];
+interface DownloadItem {
+  name: string;
+  url: string;
+  size: string;
+  icon: string;
+  source: 'local' | 'github';
+}
 
-  let files: { name: string; url: string; size: string; icon: string }[] = [];
+const PLATFORMS = [
+  { label: 'Windows', ext: '.exe', icon: '🪟' },
+  { label: 'macOS', ext: '.dmg', icon: '🍎' },
+  { label: 'Linux', ext: '.AppImage', icon: '🐧' },
+];
 
+// Download page (async handler)
+router.get('/', async (_req: Request, res: Response) => {
+  const items: DownloadItem[] = [];
+
+  // 1. Local files
   try {
-    const dirFiles = fs.readdirSync(downloadsDir);
-    // list all installable files, match by extension
-    for (const f of dirFiles) {
-      const rule = platformRules.find(r => f.endsWith(r.ext));
+    for (const f of fs.readdirSync(downloadsDir)) {
+      const rule = PLATFORMS.find(r => f.endsWith(r.ext));
       if (rule) {
         const stat = fs.statSync(path.join(downloadsDir, f));
-        files.push({
+        items.push({
           name: `${rule.label} (${f})`,
           url: `/download/files/${encodeURIComponent(f)}`,
           size: formatSize(stat.size),
           icon: rule.icon,
+          source: 'local',
         });
       }
     }
+  } catch { /* empty */ }
+
+  // 2. GitHub Releases (proxy)
+  const seen = new Set(items.map(i => i.icon));
+  try {
+    const resp = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+      {
+        headers: {
+          'User-Agent': 'TodoFlow-Server',
+          Accept: 'application/vnd.github+json',
+        },
+        signal: AbortSignal.timeout(5000),
+      }
+    );
+
+    if (resp.ok) {
+      const release = await resp.json() as any;
+      for (const asset of (release.assets || [])) {
+        const rule = PLATFORMS.find(r => (asset.name as string).endsWith(r.ext));
+        if (rule && !seen.has(rule.icon)) {
+          items.push({
+            name: `${rule.label} (${asset.name}) — GitHub`,
+            url: asset.browser_download_url,
+            size: formatSize(asset.size),
+            icon: rule.icon,
+            source: 'github',
+          });
+          seen.add(rule.icon);
+        }
+      }
+    }
   } catch {
-    // directory empty or missing
+    // GitHub API unreachable, just show local files
   }
 
-  const links = files.length > 0
-    ? files.map(a =>
-        `<a href="${a.url}" class="link"><span>${a.icon}</span><div><strong>${a.name}</strong><br><small>${a.size}</small></div><span class="arrow">↓</span></a>`
+  // Render
+  const links = items.length > 0
+    ? items.map(a =>
+        `<a href="${a.url}" class="link"><span>${a.icon}</span><div><strong>${a.name}</strong><br><small>${a.size} · ${a.source === 'github' ? 'GitHub Releases' : '本地'}</small></div><span class="arrow">↓</span></a>`
       ).join('')
-    : '<p class="empty">暂无安装包。<br>在服务器上运行 <code>bash deploy.sh</code> 自动构建。<br><br><small>macOS 安装包需在 Mac 上构建：<br><code>cd client && npx electron-builder --mac</code></small></p>';
+    : '<p class="empty">暂无安装包。<br>推送代码后 GitHub Actions 会自动构建。</p>';
 
   res.send(`<!DOCTYPE html>
 <html lang="zh-CN">
@@ -57,7 +99,7 @@ router.get('/', (_req: Request, res: Response) => {
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#c9d1d9;display:flex;align-items:center;justify-content:center;min-height:100vh}
-  .card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:32px;width:100%;max-width:420px}
+  .card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:32px;width:100%;max-width:440px}
   h1{font-size:20px;margin-bottom:4px}.ver{color:#8b949e;font-size:13px;margin-bottom:24px}
   .link{display:flex;align-items:center;gap:12px;padding:14px 16px;background:#21262d;border:1px solid #30363d;border-radius:8px;margin-bottom:8px;text-decoration:none;color:#c9d1d9;transition:all .15s}
   .link:hover{border-color:#58a6ff;background:#1c2128}
@@ -72,7 +114,7 @@ router.get('/', (_req: Request, res: Response) => {
   <h1>📋 TodoFlow</h1>
   <p class="ver">桌面待办提醒工具</p>
   ${links}
-  <p class="footer">下载安装后，在设置中填写服务器地址即可使用</p>
+  <p class="footer">下载安装后，填写服务器地址即可使用</p>
 </div>
 </body>
 </html>`);
