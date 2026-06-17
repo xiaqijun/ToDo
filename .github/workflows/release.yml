@@ -39,6 +39,15 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
+      - name: Install Linux deps (electron-builder)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 \
+            xdg-utils libatspi2.0-0 libsecret-1-0 libasound2t64 2>/dev/null || \
+          sudo apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 \
+            xdg-utils libatspi2.0-0 libsecret-1-0 libasound2
+
       - name: Build client
         run: |
           cd client
