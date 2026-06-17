@@ -6,6 +6,9 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# 清除可能存在的旧环境变量（避免覆盖 .env）
+unset DB_PASSWORD JWT_SECRET PORT CLIENT_URL 2>/dev/null || true
+
 echo -e "${GREEN}📋 TodoFlow 一键部署${NC}"
 
 # 安装 Docker
