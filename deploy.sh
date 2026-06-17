@@ -1,7 +1,5 @@
 #!/bin/bash
 set -e
-# TodoFlow 一键部署（服务器 + 客户端构建）
-# curl -fsSL https://raw.githubusercontent.com/xiaqijun/ToDo/master/deploy.sh | bash
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -14,31 +12,22 @@ echo "  ║   📋 TodoFlow 一键部署   ║"
 echo "  ╚══════════════════════════╝"
 echo -e "${NC}"
 
-# --------------------------------------------------
 # 1. Docker
-# --------------------------------------------------
 if ! command -v docker &>/dev/null; then
-  echo -e "${YELLOW}[1/4] 安装 Docker...${NC}"
+  echo -e "${YELLOW}[1/3] 安装 Docker...${NC}"
   curl -fsSL https://get.docker.com | bash
 else
-  echo -e "${GREEN}[1/4] Docker 已安装${NC}"
+  echo -e "${GREEN}[1/3] Docker 已安装${NC}"
 fi
 
-# --------------------------------------------------
-# 2. 清理旧部署
-# --------------------------------------------------
-echo -e "${YELLOW}[2/4] 清理旧部署...${NC}"
+# 2. 清理旧部署 + 生成密钥
+echo -e "${YELLOW}[2/3] 清理并生成配置...${NC}"
 unset DB_PASSWORD JWT_SECRET PORT CLIENT_URL 2>/dev/null || true
 docker compose down -v 2>/dev/null || true
 docker rm -f todoflow-server-1 todoflow-db-1 2>/dev/null || true
 docker volume ls --format '{{.Name}}' | grep -i pgdata | xargs -r docker volume rm 2>/dev/null || true
 rm -f .env
-echo "  已清除"
 
-# --------------------------------------------------
-# 3. 生成配置
-# --------------------------------------------------
-echo -e "${YELLOW}[3/4] 生成密钥...${NC}"
 JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || python3 -c "import secrets;print(secrets.token_hex(32))")
 DB_PASSWORD=$(openssl rand -hex 16 2>/dev/null || python3 -c "import secrets;print(secrets.token_hex(16))")
 IP=$(curl -s ifconfig.me 2>/dev/null || echo "localhost")
@@ -49,105 +38,26 @@ DB_PASSWORD=$DB_PASSWORD
 PORT=3001
 CLIENT_URL=http://$IP:5173
 EOF
-
 echo "  DB_PASSWORD=$DB_PASSWORD"
 
-# --------------------------------------------------
-# 4. 启动服务
-# --------------------------------------------------
-echo -e "${YELLOW}[4/4] 构建并启动...${NC}"
-docker compose up -d --build
+# 3. 拉取镜像并启动
+echo -e "${YELLOW}[3/3] 启动服务...${NC}"
+docker compose pull 2>/dev/null || docker compose build
+docker compose up -d
 
-# --------------------------------------------------
-# 5. 构建客户端
-# --------------------------------------------------
-echo ""
-echo -e "${YELLOW}📦 构建客户端安装包...${NC}"
-
-# 安装 Node.js
-if ! command -v node &>/dev/null; then
-  echo "  安装 Node.js 20..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  apt-get install -y nodejs
-fi
-
-# 安装 electron-builder 跨平台依赖
-echo "  → 安装系统依赖..."
-apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
-  libatspi2.0-0 libsecret-1-0 libasound2t64 2>/dev/null || \
-apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
-  libatspi2.0-0 libsecret-1-0 libasound2 2>/dev/null || true
-
-# 安装 Wine (用于构建 Windows 安装包)
-if ! command -v wine &>/dev/null; then
-  echo "  → 安装 Wine (Windows 构建依赖)..."
-  dpkg --add-architecture i386 2>/dev/null || true
-  apt-get update -qq 2>/dev/null
-  apt-get install -y wine64 wine32 2>/dev/null || \
-  apt-get install -y wine 2>/dev/null || echo "  ⚠ Wine 安装失败，跳过 Windows 构建"
-  HAS_WINE=$?
-else
-  HAS_WINE=0
-fi
-
-cd client
-
-echo "  → npm install..."
-npm install --no-audit --no-fund
-
-echo "  → vite build..."
-npm run build
-
-echo "  → tsc electron..."
-npx tsc --outDir dist-electron
-
-echo "  → electron-builder (Linux)..."
-npx electron-builder --linux --publish=never
-BUILD_OK=$?
-
-# Windows: 需要 Wine，有就用
-if [ "$HAS_WINE" = "0" ] 2>/dev/null || command -v wine &>/dev/null; then
-  echo "  → electron-builder (Windows)..."
-  npx electron-builder --win --publish=never || echo "  ⚠ Windows 构建跳过"
-fi
-
-# macOS: 仅在 macOS 上可构建
-if [ "$(uname)" = "Darwin" ]; then
-  echo "  → electron-builder (macOS)..."
-  npx electron-builder --mac --publish=never
-else
-  echo "  ⚠ macOS 需要在 Mac 上构建，跳过"
-fi
-
-cd ..
-
-# 检查构建产物
-echo ""
-echo "  下载目录内容:"
-ls -lh server/downloads/ 2>/dev/null || echo "  (目录为空)"
-
-if [ -f server/downloads/*.AppImage ] 2>/dev/null || ls server/downloads/*.AppImage 2>/dev/null; then
-  echo -e "  ${GREEN}✅ AppImage 构建成功${NC}"
-elif [ $BUILD_OK -ne 0 ]; then
-  echo -e "  ${RED}electron-builder 构建失败 (exit $BUILD_OK)${NC}"
-fi
-
-# --------------------------------------------------
 # 结果
-# --------------------------------------------------
+sleep 3
 echo ""
-if docker compose ps 2>/dev/null | grep -q "Up"; then
+if docker compose ps | grep -q "Up"; then
   echo -e "${GREEN}============================================${NC}"
   echo -e "${GREEN}✅ 部署完成${NC}"
   echo ""
   echo -e "  📡 服务:     ${YELLOW}http://$IP:3001${NC}"
   echo -e "  📥 客户端:   ${YELLOW}http://$IP:3001/download${NC}"
   echo ""
-  echo -e "  ${GREEN}安装包:${NC}"
-  ls -lh server/downloads/ 2>/dev/null | grep -v "^total" | grep -v "^$" | while read line; do echo "    $line"; done
-  if ! ls server/downloads/*.AppImage server/downloads/*.exe server/downloads/*.dmg 2>/dev/null; then
-    echo -e "  ${YELLOW}  无安装包。手动: cd client && npx electron-builder --linux --win${NC}"
-  fi
+  echo -e "  ${YELLOW}💡 客户端安装包由 GitHub Actions 自动构建:${NC}"
+  echo -e "     https://github.com/xiaqijun/ToDo/releases"
+  echo -e "     下载后放到 server/downloads/ 目录即可在线下载"
   echo ""
   echo -e "  管理: docker compose logs -f | restart | down"
 else

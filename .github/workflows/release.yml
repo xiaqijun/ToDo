@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for CI build artifacts
+        run: sleep 30
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TodoFlow-Linux
+          path: dist/
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TodoFlow-Windows
+          path: dist/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TodoFlow-macOS
+          path: dist/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: TodoFlow ${{ github.ref_name }}
+          files: dist/*
+          generate_release_notes: true

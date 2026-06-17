@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  # 1. 构建并推送服务端 Docker 镜像
+  server:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/todoflow-server:latest
+            ghcr.io/${{ github.repository_owner }}/todoflow-server:${{ github.sha }}
+
+  # 2. 构建 Linux 客户端
+  client-linux:
+    runs-on: ubuntu-latest
+    needs: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Build
+        run: |
+          cd client
+          npm ci
+          npm run build
+          npx tsc --outDir dist-electron
+          npx electron-builder --linux --publish=never
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: TodoFlow-Linux
+          path: server/downloads/*.AppImage
+
+  # 3. 构建 Windows 客户端
+  client-windows:
+    runs-on: windows-latest
+    needs: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Build
+        run: |
+          cd client
+          npm ci
+          npm run build
+          npx tsc --outDir dist-electron
+          npx electron-builder --win --publish=never
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: TodoFlow-Windows
+          path: server/downloads/*.exe
+
+  # 4. 构建 macOS 客户端
+  client-macos:
+    runs-on: macos-latest
+    needs: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Build
+        run: |
+          cd client
+          npm ci
+          npm run build
+          npx tsc --outDir dist-electron
+          npx electron-builder --mac --publish=never
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: TodoFlow-macOS
+          path: server/downloads/*.dmg
