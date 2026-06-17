@@ -71,12 +71,24 @@ if ! command -v node &>/dev/null; then
   apt-get install -y nodejs
 fi
 
-# 安装 electron-builder Linux 依赖
+# 安装 electron-builder 跨平台依赖
 echo "  → 安装系统依赖..."
 apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
   libatspi2.0-0 libsecret-1-0 libasound2t64 2>/dev/null || \
 apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
   libatspi2.0-0 libsecret-1-0 libasound2 2>/dev/null || true
+
+# 安装 Wine (用于构建 Windows 安装包)
+if ! command -v wine &>/dev/null; then
+  echo "  → 安装 Wine (Windows 构建依赖)..."
+  dpkg --add-architecture i386 2>/dev/null || true
+  apt-get update -qq 2>/dev/null
+  apt-get install -y wine64 wine32 2>/dev/null || \
+  apt-get install -y wine 2>/dev/null || echo "  ⚠ Wine 安装失败，跳过 Windows 构建"
+  HAS_WINE=$?
+else
+  HAS_WINE=0
+fi
 
 cd client
 
@@ -89,9 +101,23 @@ npm run build
 echo "  → tsc electron..."
 npx tsc --outDir dist-electron
 
-echo "  → electron-builder --linux..."
+echo "  → electron-builder (Linux)..."
 npx electron-builder --linux --publish=never
 BUILD_OK=$?
+
+# Windows: 需要 Wine，有就用
+if [ "$HAS_WINE" = "0" ] 2>/dev/null || command -v wine &>/dev/null; then
+  echo "  → electron-builder (Windows)..."
+  npx electron-builder --win --publish=never || echo "  ⚠ Windows 构建跳过"
+fi
+
+# macOS: 仅在 macOS 上可构建
+if [ "$(uname)" = "Darwin" ]; then
+  echo "  → electron-builder (macOS)..."
+  npx electron-builder --mac --publish=never
+else
+  echo "  ⚠ macOS 需要在 Mac 上构建，跳过"
+fi
 
 cd ..
 
@@ -117,11 +143,10 @@ if docker compose ps 2>/dev/null | grep -q "Up"; then
   echo -e "  📡 服务:     ${YELLOW}http://$IP:3001${NC}"
   echo -e "  📥 客户端:   ${YELLOW}http://$IP:3001/download${NC}"
   echo ""
-  if ls server/downloads/*.AppImage 2>/dev/null; then
-    echo -e "  ${GREEN}✅ 客户端安装包已就绪${NC}"
-  else
-    echo -e "  ${YELLOW}⚠ 客户端安装包未生成，在服务器上手动运行:${NC}"
-    echo -e "     ${YELLOW}cd client && npx electron-builder --linux${NC}"
+  echo -e "  ${GREEN}安装包:${NC}"
+  ls -lh server/downloads/ 2>/dev/null | grep -v "^total" | grep -v "^$" | while read line; do echo "    $line"; done
+  if ! ls server/downloads/*.AppImage server/downloads/*.exe server/downloads/*.dmg 2>/dev/null; then
+    echo -e "  ${YELLOW}  无安装包。手动: cd client && npx electron-builder --linux --win${NC}"
   fi
   echo ""
   echo -e "  管理: docker compose logs -f | restart | down"

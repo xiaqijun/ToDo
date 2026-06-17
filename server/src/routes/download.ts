@@ -47,7 +47,7 @@ router.get('/', (_req: Request, res: Response) => {
     ? files.map(a =>
         `<a href="${a.url}" class="link"><span>${a.icon}</span><div><strong>${a.name}</strong><br><small>${a.size}</small></div><span class="arrow">↓</span></a>`
       ).join('')
-    : '<p class="empty">暂无安装包。<br>构建客户端后安装包将出现在这里。</p>';
+    : '<p class="empty">暂无安装包。<br>在服务器上运行 <code>bash deploy.sh</code> 自动构建。<br><br><small>macOS 安装包需在 Mac 上构建：<br><code>cd client && npx electron-builder --mac</code></small></p>';
 
   res.send(`<!DOCTYPE html>
 <html lang="zh-CN">
