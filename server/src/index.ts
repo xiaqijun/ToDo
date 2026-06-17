@@ -3,6 +3,7 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { config } from './config';
 import authRoutes from './routes/auth';
+import taskRoutes from './routes/tasks';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -12,6 +13,7 @@ app.use(cors({ origin: config.clientUrl, credentials: true }));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/tasks', taskRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
