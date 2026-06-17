@@ -46,7 +46,7 @@
       "icon": null
     },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": "dmg",
       "icon": null
     },
     "linux": {
