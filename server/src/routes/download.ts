@@ -16,26 +16,26 @@ router.use('/files', express.static(downloadsDir));
 
 // Download page
 router.get('/', (_req: Request, res: Response) => {
-  const platforms = [
-    { pattern: 'win', ext: '.exe', icon: '🪟', label: 'Windows' },
-    { pattern: 'mac-arm64', ext: '.dmg', icon: '🍎', label: 'macOS (Apple Silicon)' },
-    { pattern: 'mac', ext: '.dmg', icon: '🍎', label: 'macOS (Intel)' },
-    { pattern: 'linux', ext: '.AppImage', icon: '🐧', label: 'Linux' },
+  const platformRules: { label: string; ext: string; icon: string }[] = [
+    { label: 'Windows', ext: '.exe', icon: '🪟' },
+    { label: 'macOS', ext: '.dmg', icon: '🍎' },
+    { label: 'Linux', ext: '.AppImage', icon: '🐧' },
   ];
 
   let files: { name: string; url: string; size: string; icon: string }[] = [];
 
   try {
     const dirFiles = fs.readdirSync(downloadsDir);
-    for (const p of platforms) {
-      const match = dirFiles.find(f => f.includes(p.pattern) && f.endsWith(p.ext));
-      if (match) {
-        const stat = fs.statSync(path.join(downloadsDir, match));
+    // list all installable files, match by extension
+    for (const f of dirFiles) {
+      const rule = platformRules.find(r => f.endsWith(r.ext));
+      if (rule) {
+        const stat = fs.statSync(path.join(downloadsDir, f));
         files.push({
-          name: `${p.label}`,
-          url: `/download/files/${encodeURIComponent(match)}`,
+          name: `${rule.label} (${f})`,
+          url: `/download/files/${encodeURIComponent(f)}`,
           size: formatSize(stat.size),
-          icon: p.icon,
+          icon: rule.icon,
         });
       }
     }
