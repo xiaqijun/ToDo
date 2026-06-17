@@ -49,30 +49,13 @@ npm run electron:dev   # Electron 桌面模式（需要先启动服务端）
 
 ### 部署到服务器 (Docker)
 
-**一键安装（全新服务器）：**
+**一键部署（服务器 + 客户端构建）：**
 
 ```bash
-git clone <repo-url> && cd todoflow && bash install.sh
+git clone https://github.com/xiaqijun/ToDo.git && cd ToDo && bash deploy.sh
 ```
 
-**手动部署：**
-
-```bash
-# 1. 在服务器上克隆项目
-git clone <repo-url> && cd todoflow
-
-# 2. 配置环境变量
-cp server/.env.production.example server/.env
-# 编辑 server/.env，设置 JWT_SECRET 和 DB_PASSWORD
-
-# 3. 启动
-docker compose up -d
-
-# 4. 查看日志
-docker compose logs -f server
-```
-
-服务端启动后，客户端连接地址改为服务器 IP：在 `client/.env` 中设置 `VITE_API_URL=http://<服务器IP>:3001`
+部署完成后访问 `http://<服务器IP>:3001`，下载页面自动提供客户端安装包。
 
 ## 项目结构
 
