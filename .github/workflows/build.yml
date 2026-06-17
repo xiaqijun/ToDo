@@ -67,6 +67,13 @@ jobs:
           ls -la /dev/fuse || true
           sudo chmod 666 /dev/fuse 2>/dev/null || true
 
+      - name: Set version from tag
+        run: |
+          cd client
+          VER="${{ github.ref_name }}"
+          VER="${VER#v}"
+          npm version "$VER" --no-git-tag-version --allow-same-version
+
       - name: Build Electron
         run: |
           cd client
