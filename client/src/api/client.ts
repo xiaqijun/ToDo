@@ -1,9 +1,14 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+function getApiBase(): string {
+  const stored = localStorage.getItem('serverUrl');
+  if (stored) return stored;
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  return 'http://localhost:3001';
+}
 
 const client = axios.create({
-  baseURL: `${API_BASE}/api`,
+  baseURL: `${getApiBase()}/api`,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -23,5 +28,14 @@ client.interceptors.response.use(
     return Promise.reject(err);
   }
 );
+
+export function setServerUrl(url: string) {
+  localStorage.setItem('serverUrl', url);
+  client.defaults.baseURL = `${url}/api`;
+}
+
+export function getServerUrl(): string {
+  return client.defaults.baseURL?.replace('/api', '') || 'http://localhost:3001';
+}
 
 export default client;

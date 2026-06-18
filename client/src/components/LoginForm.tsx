@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { getServerUrl, setServerUrl } from '../api/client';
 
 export default function LoginForm() {
   const { login, register } = useAuth();
@@ -7,6 +8,7 @@ export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [server, setServer] = useState(getServerUrl());
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -14,11 +16,12 @@ export default function LoginForm() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setServerUrl(server);
     try {
       if (isLogin) await login(email, password);
       else await register(email, password, displayName);
     } catch (err: any) {
-      setError(err.response?.data?.error || '操作失败');
+      setError(err.response?.data?.error || err.message || '操作失败');
     } finally {
       setLoading(false);
     }
@@ -29,6 +32,11 @@ export default function LoginForm() {
       <div className="w-72 p-6 bg-bg-secondary border border-border rounded-xl">
         <h1 className="text-lg font-bold text-text-primary mb-4">📋 TodoFlow</h1>
         <form onSubmit={handleSubmit}>
+          <input
+            type="text" value={server} onChange={e => setServer(e.target.value)}
+            placeholder="服务器地址 (例: http://IP:3001)"
+            className="w-full mb-2 px-3 py-2 bg-bg-input border border-border rounded-md text-xs text-text-primary placeholder-text-muted outline-none focus:border-accent-blue"
+          />
           {!isLogin && (
             <input
               type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
