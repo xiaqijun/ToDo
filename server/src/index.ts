@@ -10,6 +10,7 @@ import teamRoutes from './routes/teams';
 import notificationRoutes from './routes/notifications';
 import userRoutes from './routes/users';
 import downloadRoutes from './routes/download';
+import adminPageRoutes from './routes/adminPage';
 import { errorHandler } from './middleware/errorHandler';
 import { setupSocket } from './socket';
 import { startReminderScheduler } from './services/reminder';
@@ -45,6 +46,7 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/download', downloadRoutes);
+app.use('/admin', adminPageRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
