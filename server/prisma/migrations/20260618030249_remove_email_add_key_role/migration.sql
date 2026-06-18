@@ -1,11 +1,8 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "password_hash" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'user',
     "display_name" TEXT NOT NULL,
     "avatar_url" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -69,7 +66,7 @@ CREATE TABLE "notifications" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE UNIQUE INDEX "users_key_key" ON "users"("key");
 
 -- CreateIndex
 CREATE INDEX "tasks_creator_id_idx" ON "tasks"("creator_id");
@@ -112,4 +109,3 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_task_id_fkey" FOREIGN KEY ("task_id") REFERENCES "tasks"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-

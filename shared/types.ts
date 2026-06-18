@@ -1,7 +1,7 @@
 export interface User {
   id: string;
-  email: string;
   displayName: string;
+  role: string;
   avatarUrl?: string;
   createdAt: string;
 }
@@ -83,7 +83,3 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  user: User;
-}

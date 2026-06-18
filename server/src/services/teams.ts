@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { AppError } from './auth';
+import { AppError } from '../middleware/AppError';
 
 const prisma = new PrismaClient();
 
@@ -26,7 +26,7 @@ export class TeamService {
     return prisma.teamMember.findMany({
       where: { teamId },
       include: {
-        user: { select: { id: true, email: true, displayName: true, avatarUrl: true } },
+        user: { select: { id: true, displayName: true, avatarUrl: true } },
       },
     });
   }

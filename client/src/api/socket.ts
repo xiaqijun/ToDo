@@ -4,11 +4,11 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 let socket: Socket | null = null;
 
-export function connectSocket(token: string): Socket {
+export function connectSocket(key: string): Socket {
   if (socket?.connected) return socket;
 
   socket = io(SOCKET_URL, {
-    auth: { token },
+    auth: { key },
     transports: ['websocket', 'polling'],
   });
 

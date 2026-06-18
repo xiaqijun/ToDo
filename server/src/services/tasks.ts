@@ -1,20 +1,20 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { AppError } from './auth';
+import { AppError } from '../middleware/AppError';
 import { getIO } from '../socket';
 
 const prisma = new PrismaClient();
 
 const TASK_INCLUDE = {
   assignee: {
-    select: { id: true, email: true, displayName: true, avatarUrl: true, createdAt: true },
+    select: { id: true, displayName: true, avatarUrl: true, createdAt: true },
   },
   creator: {
-    select: { id: true, email: true, displayName: true, avatarUrl: true, createdAt: true },
+    select: { id: true, displayName: true, avatarUrl: true, createdAt: true },
   },
   subtasks: {
     include: {
       assignee: {
-        select: { id: true, email: true, displayName: true, avatarUrl: true, createdAt: true },
+        select: { id: true, displayName: true, avatarUrl: true, createdAt: true },
       },
     },
   },

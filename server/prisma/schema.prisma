@@ -8,12 +8,12 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  displayName  String   @map("display_name")
-  avatarUrl    String?  @map("avatar_url")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid())
+  key         String   @unique
+  role        String   @default("user")
+  displayName String   @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   createdTasks     Task[]          @relation("TaskCreator")
   assignedTasks    Task[]          @relation("TaskAssignee")

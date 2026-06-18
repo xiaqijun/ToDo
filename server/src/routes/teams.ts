@@ -1,9 +1,9 @@
 import { Router, Response, NextFunction } from 'express';
 import { teamService } from '../services/teams';
-import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { keyAuthMiddleware, AuthRequest } from '../middleware/keyAuth';
 
 const router = Router();
-router.use(authMiddleware);
+router.use(keyAuthMiddleware);
 
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

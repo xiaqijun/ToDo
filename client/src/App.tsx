@@ -1,6 +1,6 @@
 import { useAuth } from './hooks/useAuth';
 import FloatWindow from './components/FloatWindow';
-import LoginForm from './components/LoginForm';
+import KeyLogin from './components/KeyLogin';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -13,6 +13,6 @@ export default function App() {
     );
   }
 
-  if (!user) return <LoginForm />;
+  if (!user) return <KeyLogin />;
   return <FloatWindow />;
 }

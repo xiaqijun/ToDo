@@ -13,8 +13,8 @@ const client = axios.create({
 });
 
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const key = localStorage.getItem('authKey');
+  if (key) config.headers.Authorization = `Bearer ${key}`;
   return config;
 });
 
@@ -22,7 +22,7 @@ client.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('token');
+      localStorage.removeItem('authKey');
       window.location.reload();
     }
     return Promise.reject(err);
