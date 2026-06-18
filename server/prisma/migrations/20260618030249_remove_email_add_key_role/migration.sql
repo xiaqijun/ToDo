@@ -6,8 +6,8 @@ ALTER TABLE "users" DROP COLUMN IF EXISTS "password_hash";
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "key" TEXT;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'user';
 
--- Generate keys for existing users (using gen_random_uuid for uniqueness)
-UPDATE "users" SET "key" = 'td_' || encode(gen_random_bytes(24), 'hex') WHERE "key" IS NULL;
+-- Generate keys for existing users
+UPDATE "users" SET "key" = 'td_' || replace(gen_random_uuid()::text, '-', '') WHERE "key" IS NULL;
 
 -- Make key NOT NULL and unique
 ALTER TABLE "users" ALTER COLUMN "key" SET NOT NULL;
