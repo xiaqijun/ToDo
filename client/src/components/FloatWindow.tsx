@@ -38,8 +38,8 @@ export default function FloatWindow() {
 
   return (
     <div className="h-screen bg-bg-secondary text-text-primary flex flex-col overflow-hidden drag-region">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-2.5 py-2 border-b border-border-subtle no-drag">
+      {/* Header — draggable area */}
+      <div className="flex items-center gap-2 px-2.5 py-2 border-b border-border-subtle drag-region">
         <span className="font-semibold text-xs">📋 TodoFlow</span>
         <TeamTabs />
         <button onClick={logout} className="text-text-muted hover:text-text-primary text-[10px] px-1.5 py-0.5 rounded hover:bg-bg-tertiary transition-colors ml-auto">
