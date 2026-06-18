@@ -1,6 +1,16 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, Notification, screen } from 'electron';
 import path from 'path';
 
+// Set writable userData path to avoid GPU cache permission errors on Windows
+app.setPath('userData', path.join(app.getPath('temp'), 'todoflow-data'));
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT:', err.stack || err.message);
+});
+process.on('unhandledRejection', (reason: any) => {
+  console.error('REJECTION:', reason?.stack || reason?.message || reason);
+});
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
