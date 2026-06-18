@@ -1,8 +1,8 @@
-import { useAuth } from './hooks/useAuth';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import FloatWindow from './components/FloatWindow';
 import KeyLogin from './components/KeyLogin';
 
-export default function App() {
+function AppContent() {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -15,4 +15,12 @@ export default function App() {
 
   if (!user) return <KeyLogin />;
   return <FloatWindow />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }
