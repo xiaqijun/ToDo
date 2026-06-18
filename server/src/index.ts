@@ -14,7 +14,7 @@ import adminPageRoutes from './routes/adminPage';
 import { errorHandler } from './middleware/errorHandler';
 import { setupSocket } from './socket';
 import { startReminderScheduler } from './services/reminder';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { generateKey } from './utils/keyGen';
 
 const prisma = new PrismaClient();

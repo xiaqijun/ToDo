@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { keyAuthMiddleware, requireAdmin, AuthRequest } from '../middleware/keyAuth';
 import { generateKey } from '../utils/keyGen';
 import { taskService } from '../services/tasks';
