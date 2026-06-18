@@ -107,8 +107,9 @@ td code{font-family:SFMono,monospace;font-size:12px;color:var(--text2)}
           <button class="btn-gray" onclick="fetchUsers()">刷新</button>
         </div>
         <div id="create-user-form" class="hidden" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
-          <input type="text" id="new-user-name" placeholder="显示名称" style="width:150px;margin-right:8px">
-          <input type="password" id="new-user-password" placeholder="密码（可选，至少6位）" style="width:150px;margin-right:8px">
+          <input type="text" id="new-user-name" placeholder="账号（英文）" style="width:130px;margin-right:8px">
+          <input type="text" id="new-user-realname" placeholder="真实姓名（可选）" style="width:130px;margin-right:8px">
+          <input type="password" id="new-user-password" placeholder="密码（可选，至少6位）" style="width:130px;margin-right:8px">
           <select id="new-user-role" style="margin-right:8px"><option value="user">普通用户</option><option value="admin">管理员</option></select>
           <button class="btn-green" onclick="createUser()">创建</button>
           <button class="btn-gray" onclick="hideCreateUser()">取消</button>
@@ -120,7 +121,7 @@ td code{font-family:SFMono,monospace;font-size:12px;color:var(--text2)}
           </div>
           <code id="user-key-text"></code>
         </div>
-        <table><thead><tr><th>名称</th><th>角色</th><th>密钥</th><th style="text-align:right">操作</th></tr></thead>
+        <table><thead><tr><th>账号</th><th>姓名</th><th>角色</th><th>密钥</th><th style="text-align:right">操作</th></tr></thead>
           <tbody id="user-list"></tbody></table>
       </div>
     </div>
@@ -259,20 +260,22 @@ async function fetchUsers() {
 }
 function renderUsers(list) {
   document.getElementById('user-list').innerHTML = list.length
-    ? list.map(u => '<tr><td>' + esc(u.displayName) + '</td><td><span class="badge ' + (u.role === 'admin' ? 'bg-blue' : 'bg-gray') + '">' + (u.role === 'admin' ? '管理员' : '用户') + '</span></td><td><code>' + esc(u.keyMasked) + '</code></td><td style="text-align:right"><button class="btn-blue" style="font-size:11px;padding:2px 8px;margin-right:4px" onclick="regenerateKey(\\'' + u.id + '\\',\\'' + esc(u.displayName) + '\\')">重置</button><button class="btn-red" style="font-size:11px;padding:2px 8px" onclick="deleteUser(\\'' + u.id + '\\',\\'' + esc(u.displayName) + '\\')">删除</button></td></tr>').join('')
-    : '<tr><td colspan="4" style="text-align:center;color:var(--text2);padding:20px">暂无用户</td></tr>';
+    ? list.map(u => '<tr><td>' + esc(u.displayName) + '</td><td>' + esc(u.realName || '-') + '</td><td><span class="badge ' + (u.role === 'admin' ? 'bg-blue' : 'bg-gray') + '">' + (u.role === 'admin' ? '管理员' : '用户') + '</span></td><td><code>' + esc(u.keyMasked) + '</code></td><td style="text-align:right"><button class="btn-blue" style="font-size:11px;padding:2px 8px;margin-right:4px" onclick="regenerateKey(\\'' + u.id + '\\',\\'' + esc(u.displayName) + '\\')">重置</button><button class="btn-red" style="font-size:11px;padding:2px 8px" onclick="deleteUser(\\'' + u.id + '\\',\\'' + esc(u.displayName) + '\\')">删除</button></td></tr>').join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px">暂无用户</td></tr>';
 }
 function filterUsers() {
   const q = document.getElementById('user-search').value.toLowerCase();
   renderUsers(q ? allUsers.filter(u => u.displayName.toLowerCase().includes(q)) : allUsers);
 }
 function showCreateUser() { document.getElementById('create-user-form').classList.remove('hidden'); }
-function hideCreateUser() { document.getElementById('create-user-form').classList.add('hidden'); document.getElementById('new-user-name').value = ''; document.getElementById('new-user-password').value = ''; }
+function hideCreateUser() { document.getElementById('create-user-form').classList.add('hidden'); document.getElementById('new-user-name').value = ''; document.getElementById('new-user-realname').value = ''; document.getElementById('new-user-password').value = ''; }
 async function createUser() {
   const name = document.getElementById('new-user-name').value.trim(), role = document.getElementById('new-user-role').value;
+  const realName = document.getElementById('new-user-realname').value.trim();
   const password = document.getElementById('new-user-password').value.trim();
   if (!name) return;
   const body = { displayName: name, role };
+  if (realName) body.realName = realName;
   if (password) body.password = password;
   try {
     const res = await api('/api/admin/users', { method: 'POST', body: JSON.stringify(body) });

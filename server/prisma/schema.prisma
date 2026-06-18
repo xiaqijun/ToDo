@@ -12,6 +12,7 @@ model User {
   key         String   @unique
   role        String   @default("user")
   displayName String   @map("display_name")
+  realName     String?  @map("real_name")
   avatarUrl    String?  @map("avatar_url")
   passwordHash String?  @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at")

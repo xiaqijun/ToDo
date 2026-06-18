@@ -217,12 +217,13 @@ router.post('/system/sync-downloads', async (_req: Request, res: Response, next:
 router.get('/users', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({
-      select: { id: true, displayName: true, role: true, key: true, createdAt: true },
+      select: { id: true, displayName: true, realName: true, role: true, key: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
     const masked = users.map(u => ({
       id: u.id,
       displayName: u.displayName,
+      realName: u.realName,
       role: u.role,
       keyMasked: u.key.slice(0, 6) + '...' + u.key.slice(-4),
       createdAt: u.createdAt,
@@ -235,14 +236,15 @@ router.get('/users', async (_req: Request, res: Response, next: NextFunction) =>
 
 router.post('/users', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { displayName, role, password } = req.body;
+    const { displayName, realName, role, password } = req.body;
     if (!displayName) return res.status(400).json({ error: '请提供 displayName' });
     const key = generateKey();
     const data: any = { displayName, key, role: role || 'user' };
+    if (realName) data.realName = realName;
     if (password) data.passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data,
-      select: { id: true, displayName: true, role: true, createdAt: true },
+      select: { id: true, displayName: true, realName: true, role: true, createdAt: true },
     });
     res.status(201).json({ user, key });
   } catch (err) {
@@ -262,11 +264,11 @@ router.post('/users/:id/regenerate-key', async (req: AuthRequest, res: Response,
 
 router.put('/users/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { displayName, role } = req.body;
+    const { displayName, realName, role } = req.body;
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: { ...(displayName && { displayName }), ...(role && { role }) },
-      select: { id: true, displayName: true, role: true, createdAt: true },
+      data: { ...(displayName && { displayName }), ...(realName !== undefined && { realName }), ...(role && { role }) },
+      select: { id: true, displayName: true, realName: true, role: true, createdAt: true },
     });
     res.json({ data: user });
   } catch (err) {
