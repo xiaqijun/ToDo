@@ -2,12 +2,13 @@
   "name": "todoflow-client",
   "version": "1.0.17",
   "private": true,
-  "main": "dist-electron/electron/main.js",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "electron:build": "vite build && electron-builder"
+    "build:electron": "tsc electron/main.ts electron/preload.ts --outDir dist-electron --module commonjs --target es2020 --esModuleInterop --skipLibCheck --moduleResolution node",
+    "electron:dev": "npm run build:electron && concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "vite build && npm run build:electron && electron-builder --win"
   },
   "dependencies": {
     "axios": "^1.7.7",
