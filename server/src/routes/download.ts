@@ -159,7 +159,7 @@ router.get('/', (_req: Request, res: Response) => {
   <h1>📋 TodoFlow</h1>
   <p class="ver">桌面待办提醒工具</p>
   ${links}
-  <p class="footer">下载安装后，填写服务器地址即可使用</p>
+  <p class="footer">下载安装后，联系管理员获取密钥即可登录使用</p>
 </div>
 </body>
 </html>`);
