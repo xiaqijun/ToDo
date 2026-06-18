@@ -2,6 +2,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { keyAuthMiddleware, requireAdmin, AuthRequest } from '../middleware/keyAuth';
 import { generateKey } from '../utils/keyGen';
+import { taskService } from '../services/tasks';
+import { getDownloadStatus, triggerSync } from './download';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -10,8 +12,181 @@ const router = Router();
 router.use(keyAuthMiddleware);
 router.use(requireAdmin);
 
-// List all users (keys masked)
-router.get('/users', async (req: Request, res: Response, next: NextFunction) => {
+// ── Dashboard stats ──
+router.get('/stats', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const [totalUsers, totalTasks, pendingTasks, doneTasks, overdueTasks, totalTeams, recentTasks] =
+      await Promise.all([
+        prisma.user.count(),
+        prisma.task.count(),
+        prisma.task.count({ where: { status: 'pending' } }),
+        prisma.task.count({ where: { status: 'done' } }),
+        prisma.task.count({ where: { status: { not: 'done' }, dueAt: { lt: new Date() } } }),
+        prisma.team.count(),
+        prisma.task.findMany({
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            creator: { select: { id: true, displayName: true } },
+            assignee: { select: { id: true, displayName: true } },
+          },
+        }),
+      ]);
+    res.json({
+      data: { totalUsers, totalTasks, pendingTasks, doneTasks, overdueTasks, totalTeams, recentTasks },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Tasks ──
+router.get('/tasks', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId, teamId, status, importance, urgency, search } = req.query;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+
+    const where: any = {};
+    if (userId) where.creatorId = userId as string;
+    if (teamId) where.teamId = teamId as string;
+    if (status) where.status = status as string;
+    if (importance) where.importance = importance as string;
+    if (urgency) where.urgency = urgency as string;
+    if (search) where.title = { contains: search as string, mode: 'insensitive' };
+
+    const [data, total] = await Promise.all([
+      prisma.task.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          creator: { select: { id: true, displayName: true } },
+          assignee: { select: { id: true, displayName: true } },
+        },
+      }),
+      prisma.task.count({ where }),
+    ]);
+
+    res.json({ data, total, page, limit });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/tasks/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: req.params.id },
+      include: {
+        creator: { select: { id: true, displayName: true } },
+        assignee: { select: { id: true, displayName: true } },
+        subtasks: {
+          include: {
+            assignee: { select: { id: true, displayName: true } },
+          },
+        },
+      },
+    });
+    if (!task) return res.status(404).json({ error: '任务不存在' });
+    res.json({ data: task });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/tasks/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await taskService.remove(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Teams ──
+router.get('/teams', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const teams = await prisma.team.findMany({
+      include: { _count: { select: { members: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const creatorIds = [...new Set(teams.map(t => t.createdBy))];
+    const creators = await prisma.user.findMany({
+      where: { id: { in: creatorIds } },
+      select: { id: true, displayName: true },
+    });
+    const nameMap = new Map(creators.map(c => [c.id, c.displayName]));
+
+    const data = teams.map(t => ({
+      id: t.id,
+      name: t.name,
+      createdBy: t.createdBy,
+      createdAt: t.createdAt,
+      memberCount: t._count.members,
+      creatorName: nameMap.get(t.createdBy) || 'Unknown',
+    }));
+
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/teams/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Nullify teamId on tasks in this team
+    await prisma.task.updateMany({ where: { teamId: req.params.id }, data: { teamId: null } });
+    // Delete team (cascade removes TeamMember records)
+    await prisma.team.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── System ──
+import { version } from '../../package.json';
+
+router.get('/system', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    let dbStatus = 'disconnected';
+    try {
+      await prisma.$queryRawUnsafe('SELECT 1');
+      dbStatus = 'connected';
+    } catch { /* stays disconnected */ }
+
+    const ds = getDownloadStatus();
+
+    res.json({
+      data: {
+        version,
+        uptime: Math.floor(process.uptime()),
+        uptimeHuman: formatUptime(process.uptime()),
+        dbStatus,
+        lastDownloadSync: ds.lastSync,
+        downloadSyncing: ds.syncing,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/system/sync-downloads', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const started = triggerSync();
+    if (!started) return res.status(409).json({ error: '正在同步中' });
+    res.json({ data: { syncing: true } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Users (existing) ──
+router.get('/users', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({
       select: { id: true, displayName: true, role: true, key: true, createdAt: true },
@@ -30,25 +205,21 @@ router.get('/users', async (req: Request, res: Response, next: NextFunction) => 
   }
 });
 
-// Create user — returns full key once
 router.post('/users', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { displayName, role } = req.body;
     if (!displayName) return res.status(400).json({ error: '请提供 displayName' });
-
     const key = generateKey();
     const user = await prisma.user.create({
       data: { displayName, key, role: role || 'user' },
       select: { id: true, displayName: true, role: true, createdAt: true },
     });
-
     res.status(201).json({ user, key });
   } catch (err) {
     next(err);
   }
 });
 
-// Regenerate key
 router.post('/users/:id/regenerate-key', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const key = generateKey();
@@ -59,7 +230,6 @@ router.post('/users/:id/regenerate-key', async (req: AuthRequest, res: Response,
   }
 });
 
-// Update user
 router.put('/users/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { displayName, role } = req.body;
@@ -74,7 +244,6 @@ router.put('/users/:id', async (req: Request, res: Response, next: NextFunction)
   }
 });
 
-// Delete user (cannot delete self)
 router.delete('/users/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (req.params.id === req.userId) {
@@ -86,5 +255,19 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response, next: NextFu
     next(err);
   }
 });
+
+// ── Helpers ──
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0 || d > 0) parts.push(`${h}h`);
+  if (m > 0 || h > 0 || d > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
+}
 
 export default router;

@@ -33,6 +33,7 @@ const PLATFORMS = [
 interface ReleaseAsset { name: string; browser_download_url: string; size: number }
 
 let lastTag = '';          // latest release tag we've synced
+let lastSyncTime: string | null = null; // ISO timestamp of last successful sync
 let syncing = false;       // mutex — only one sync at a time
 
 async function syncFromGitHub(): Promise<void> {
@@ -96,6 +97,7 @@ async function syncFromGitHub(): Promise<void> {
     }
 
     lastTag = tag;
+    lastSyncTime = new Date().toISOString();
     console.log(`[download] Synced to ${tag}`);
   } catch (err: any) {
     if (err?.name === 'AbortError' || err?.code === 'UND_ERR_CONNECT_TIMEOUT') {
@@ -168,6 +170,17 @@ router.get('/', (_req: Request, res: Response) => {
 function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ── Admin exports ──
+export function getDownloadStatus() {
+  return { syncing, lastSync: lastSyncTime };
+}
+
+export function triggerSync(): boolean {
+  if (syncing) return false;
+  syncFromGitHub();
+  return true;
 }
 
 export default router;
