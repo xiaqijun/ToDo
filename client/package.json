@@ -1,6 +1,6 @@
 {
   "name": "todoflow-client",
-  "version": "1.0.17",
+  "version": "1.0.20",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
@@ -44,7 +44,7 @@
       "dist-electron/**/*"
     ],
     "win": {
-      "target": "nsis",
+      "target": "portable",
       "icon": null
     },
     "mac": {
