@@ -235,11 +235,13 @@ router.get('/users', async (_req: Request, res: Response, next: NextFunction) =>
 
 router.post('/users', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { displayName, role } = req.body;
+    const { displayName, role, password } = req.body;
     if (!displayName) return res.status(400).json({ error: '请提供 displayName' });
     const key = generateKey();
+    const data: any = { displayName, key, role: role || 'user' };
+    if (password) data.passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { displayName, key, role: role || 'user' },
+      data,
       select: { id: true, displayName: true, role: true, createdAt: true },
     });
     res.status(201).json({ user, key });

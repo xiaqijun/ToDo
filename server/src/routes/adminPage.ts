@@ -107,7 +107,8 @@ td code{font-family:SFMono,monospace;font-size:12px;color:var(--text2)}
           <button class="btn-gray" onclick="fetchUsers()">刷新</button>
         </div>
         <div id="create-user-form" class="hidden" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
-          <input type="text" id="new-user-name" placeholder="显示名称" style="width:200px;margin-right:8px">
+          <input type="text" id="new-user-name" placeholder="显示名称" style="width:150px;margin-right:8px">
+          <input type="password" id="new-user-password" placeholder="密码（可选，至少6位）" style="width:150px;margin-right:8px">
           <select id="new-user-role" style="margin-right:8px"><option value="user">普通用户</option><option value="admin">管理员</option></select>
           <button class="btn-green" onclick="createUser()">创建</button>
           <button class="btn-gray" onclick="hideCreateUser()">取消</button>
@@ -266,12 +267,15 @@ function filterUsers() {
   renderUsers(q ? allUsers.filter(u => u.displayName.toLowerCase().includes(q)) : allUsers);
 }
 function showCreateUser() { document.getElementById('create-user-form').classList.remove('hidden'); }
-function hideCreateUser() { document.getElementById('create-user-form').classList.add('hidden'); document.getElementById('new-user-name').value = ''; }
+function hideCreateUser() { document.getElementById('create-user-form').classList.add('hidden'); document.getElementById('new-user-name').value = ''; document.getElementById('new-user-password').value = ''; }
 async function createUser() {
   const name = document.getElementById('new-user-name').value.trim(), role = document.getElementById('new-user-role').value;
+  const password = document.getElementById('new-user-password').value.trim();
   if (!name) return;
+  const body = { displayName: name, role };
+  if (password) body.password = password;
   try {
-    const res = await api('/api/admin/users', { method: 'POST', body: JSON.stringify({ displayName: name, role }) });
+    const res = await api('/api/admin/users', { method: 'POST', body: JSON.stringify(body) });
     document.getElementById('user-key-label').textContent = name + ' 的密钥（仅此一次显示）：';
     document.getElementById('user-key-text').textContent = res.key;
     document.getElementById('user-key-display').classList.remove('hidden');
