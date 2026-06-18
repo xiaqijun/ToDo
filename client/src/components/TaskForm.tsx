@@ -77,7 +77,7 @@ export default function TaskForm({ task, onSave, onCancel }: Props) {
       await onSave({
         title: title.trim(), urgency, importance,
         assigneeId: assigneeId || undefined,
-        startAt: startAt ? (recurrence === 'hourly' ? new Date().toISOString().slice(0, 11) + startAt + ':00' : new Date(startAt).toISOString()) : undefined,
+        startAt: startAt ? new Date(startAt).toISOString() : undefined,
         dueAt: dueAt ? (recurrence === 'hourly' ? new Date().toISOString().slice(0, 11) + dueAt + ':00' : new Date(dueAt).toISOString()) : undefined,
         isRecurring: recurrence !== 'none',
         recurrenceRule: buildRecurrenceRule(),
@@ -148,8 +148,8 @@ export default function TaskForm({ task, onSave, onCancel }: Props) {
 
       <div className="flex gap-1 mb-1.5">
         <div className="flex-1">
-          <label className="text-[9px] text-text-secondary uppercase block">{recurrence === 'hourly' ? '开始时间' : '开始时间'}</label>
-          <input type={recurrence === 'hourly' ? 'time' : 'datetime-local'} value={startAt} onChange={e => setStartAt(e.target.value)}
+          <label className="text-[9px] text-text-secondary uppercase block">开始时间</label>
+          <input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)}
             className="w-full bg-bg-input border border-border rounded px-1 py-1.5 text-[10px] text-text-primary outline-none focus:border-accent-blue" />
         </div>
         <div className="flex-1">
