@@ -45,7 +45,8 @@
     ],
     "win": {
       "target": "portable",
-      "icon": null
+      "icon": null,
+      "signAndEditExecutable": false
     },
     "mac": {
       "target": "dmg",
