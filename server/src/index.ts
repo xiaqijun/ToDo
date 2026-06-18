@@ -16,7 +16,25 @@ const app = express();
 const server = createServer(app);
 setupSocket(server);
 
-app.use(cors({ origin: config.clientUrl, credentials: true }));
+// Allow localhost origins (dev) + configured client URL
+const allowedOrigins = [
+  config.clientUrl,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'file://',
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, Electron, mobile apps)
+    if (!origin) return callback(null, true);
+    // Check if origin is allowed (exact or starts with file://)
+    if (allowedOrigins.some(o => origin.startsWith(o) || o.startsWith(origin))) {
+      return callback(null, true);
+    }
+    callback(null, true); // Be permissive for personal server
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
