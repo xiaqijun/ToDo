@@ -35,6 +35,8 @@ export default function TaskForm({ task, onSave, onCancel }: Props) {
   const [recurrence, setRecurrence] = useState<RecurrenceType>(task?.recurrenceRule?.type || 'none');
   const [recurVal, setRecurVal] = useState('1');
   const [weekdaysOnly, setWeekdaysOnly] = useState(task?.recurrenceRule?.weekdaysOnly || false);
+  const [recurStartTime, setRecurStartTime] = useState(task?.recurrenceRule?.startTime || '09:00');
+  const [recurEndTime, setRecurEndTime] = useState(task?.recurrenceRule?.dueTime || '18:00');
   const [subtasks, setSubtasks] = useState<SubtaskEntry[]>(
     task?.subtasks?.map(st => ({ title: st.title, assigneeId: st.assigneeId || '' })) || []
   );
@@ -75,7 +77,7 @@ export default function TaskForm({ task, onSave, onCancel }: Props) {
       await onSave({
         title: title.trim(), urgency, importance,
         assigneeId: assigneeId || undefined,
-        startAt: startAt ? new Date(startAt).toISOString() : undefined,
+        startAt: startAt ? (recurrence === 'hourly' ? new Date().toISOString().slice(0, 11) + startAt + ':00' : new Date(startAt).toISOString()) : undefined,
         dueAt: dueAt ? new Date(dueAt).toISOString() : undefined,
         isRecurring: recurrence !== 'none',
         recurrenceRule: buildRecurrenceRule(),
@@ -146,8 +148,8 @@ export default function TaskForm({ task, onSave, onCancel }: Props) {
 
       <div className="flex gap-1 mb-1.5">
         <div className="flex-1">
-          <label className="text-[9px] text-text-secondary uppercase block">开始时间</label>
-          <input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)}
+          <label className="text-[9px] text-text-secondary uppercase block">{recurrence === 'hourly' ? '开始时间' : '开始时间'}</label>
+          <input type={recurrence === 'hourly' ? 'time' : 'datetime-local'} value={startAt} onChange={e => setStartAt(e.target.value)}
             className="w-full bg-bg-input border border-border rounded px-1 py-1.5 text-[10px] text-text-primary outline-none focus:border-accent-blue" />
         </div>
         <div className="flex-1">
