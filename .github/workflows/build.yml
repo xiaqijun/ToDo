@@ -80,7 +80,8 @@ jobs:
           cd client
           npm ci
           npm run build
-          npx tsc --outDir dist-electron
+          npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/electron/main.js
+          npx esbuild electron/preload.ts --bundle --platform=node --external:electron --outfile=dist-electron/electron/preload.js
           find dist-electron -type f
           npx electron-builder --${{ matrix.target }} --publish=never
 

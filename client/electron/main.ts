@@ -21,7 +21,6 @@ function createWindow() {
     },
   });
 
-  // Position top-right
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width } = primaryDisplay.workAreaSize;
   mainWindow.setPosition(width - 350, 10);
@@ -30,7 +29,6 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL!);
   } else {
-    // dist-electron/electron/main.js → ../../dist/index.html
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
 
@@ -44,7 +42,6 @@ function createWindow() {
 
 function createTray() {
   try {
-    // Create a 16x16 icon from a minimal valid PNG
     const icon = nativeImage.createFromDataURL(
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA' +
       'EElEQVQ4T2P8//8/AyMDEgMAGnYBAQFnrGmNAAAAAElFTkSuQmCC'
@@ -75,11 +72,9 @@ function createTray() {
     });
   } catch (err) {
     console.error('Failed to create tray:', err);
-    // App still works without tray
   }
 }
 
-// IPC: show native notification from renderer
 ipcMain.on('show-notification', (_event, data: { title: string; body: string }) => {
   if (Notification.isSupported()) {
     const n = new Notification({ title: data.title, body: data.body });
