@@ -20,7 +20,6 @@ services:
       - "${PORT:-3001}:3001"
     environment:
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-change-me}@db:5432/todoflow
-      JWT_SECRET: ${JWT_SECRET:-change-me-to-random}
       PORT: "3001"
       CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
     depends_on:
