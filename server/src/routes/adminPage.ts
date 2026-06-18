@@ -160,6 +160,13 @@ td code{font-family:SFMono,monospace;font-size:12px;color:var(--text2)}
           <span style="font-size:13px;color:var(--text2)" id="sync-status">加载中...</span>
         </div>
       </div>
+      <div class="panel">
+        <h3>🔑 修改密码</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="password" id="new-password" placeholder="新密码（至少6位）" style="width:200px">
+          <button class="btn-green" onclick="changePassword()">修改</button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -182,45 +189,33 @@ const api = (path, opts = {}) => fetch(path, {
 }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)));
 
 async function login() {
-  const key = localStorage.getItem('adminKey') || '';
-  if (!key) { showLogin(); return; }
-  try {
-    const res = await fetch('/api/auth/connect', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key })
-    }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)));
-    if (res.user.role !== 'admin') { toast('需要管理员权限', true); showLogin(); return; }
-    authKey = key;
-    localStorage.setItem('adminKey', key);
-    document.getElementById('admin-name').textContent = res.user.displayName;
-    document.getElementById('login-overlay')?.remove();
-    showSection('dashboard');
-  } catch (e) { toast('密钥无效或服务器不可达', true); showLogin(); }
+  document.getElementById('login-overlay')?.remove();
+  showLogin();
 }
 
 function showLogin() {
-  if (document.getElementById('login-overlay')) return;
   const div = document.createElement('div');
   div.id = 'login-overlay';
   div.style.cssText = 'position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center';
-  div.innerHTML = '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:30px;width:360px"><h1 style="font-size:18px;margin-bottom:18px">📋 TodoFlow 管理</h1><input type="password" id="login-key" placeholder="请输入管理员密钥" style="width:100%;margin-bottom:10px"><button class="btn-green" style="width:100%" onclick="doLogin()">连接</button><p id="login-err" style="color:var(--red);font-size:12px;margin-top:10px;display:none"></p></div>';
+  div.innerHTML = '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:30px;width:360px"><h1 style="font-size:18px;margin-bottom:18px">📋 TodoFlow 管理</h1><input type="text" id="login-name" placeholder="账号" style="width:100%;margin-bottom:10px"><input type="password" id="login-pass" placeholder="密码" style="width:100%;margin-bottom:10px"><button class="btn-green" style="width:100%" onclick="doLogin()">登录</button><p id="login-err" style="color:var(--red);font-size:12px;margin-top:10px;display:none"></p></div>';
   document.body.appendChild(div);
 }
 function doLogin() {
-  const key = document.getElementById('login-key').value.trim();
-  if (!key) return;
+  const name = document.getElementById('login-name').value.trim();
+  const pass = document.getElementById('login-pass').value.trim();
+  if (!name || !pass) return;
   document.getElementById('login-err').style.display = 'none';
-  fetch('/api/auth/connect', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key })
+  fetch('/api/admin/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ displayName: name, password: pass })
   }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
     .then(res => {
-      if (res.user.role !== 'admin') { document.getElementById('login-err').textContent = '需要管理员权限'; document.getElementById('login-err').style.display = 'block'; return; }
-      authKey = key; localStorage.setItem('adminKey', key);
+      authKey = res.key;
       document.getElementById('admin-name').textContent = res.user.displayName;
       document.getElementById('login-overlay').remove();
       showSection('dashboard');
-    }).catch(e => { document.getElementById('login-err').textContent = e.error || '密钥无效'; document.getElementById('login-err').style.display = 'block'; });
+    }).catch(e => { document.getElementById('login-err').textContent = e.error || '账号或密码错误'; document.getElementById('login-err').style.display = 'block'; });
 }
-function logout() { localStorage.removeItem('adminKey'); location.reload(); }
+function logout() { authKey = ''; location.reload(); }
 
 // ── Navigation ──
 function showSection(name) {
@@ -406,6 +401,16 @@ async function triggerDownloadSync() {
   }
   btn.disabled = false; btn.textContent = '立即同步';
   setTimeout(fetchSystem, 2000);
+}
+
+async function changePassword() {
+  const pw = document.getElementById('new-password').value.trim();
+  if (!pw || pw.length < 6) { toast('密码至少6位', true); return; }
+  try {
+    await api('/api/admin/password', { method: 'PUT', body: JSON.stringify({ password: pw }) });
+    toast('密码已修改');
+    document.getElementById('new-password').value = '';
+  } catch (e) { toast(e.error || '修改失败', true); }
 }
 
 // ── Helpers ──

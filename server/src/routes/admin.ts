@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 import { keyAuthMiddleware, requireAdmin, AuthRequest } from '../middleware/keyAuth';
 import { generateKey } from '../utils/keyGen';
 import { taskService } from '../services/tasks';
@@ -8,9 +9,36 @@ import { getDownloadStatus, triggerSync } from './download';
 const prisma = new PrismaClient();
 const router = Router();
 
-// All admin routes require auth + admin role
+// ── Public: admin login with password ──
+router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { displayName, password } = req.body;
+    if (!displayName || !password) return res.status(400).json({ error: '请输入账号和密码' });
+    const user = await prisma.user.findFirst({
+      where: { displayName, role: 'admin' },
+      select: { id: true, displayName: true, role: true, passwordHash: true, key: true },
+    });
+    if (!user || !user.passwordHash) return res.status(401).json({ error: '账号或密码错误' });
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) return res.status(401).json({ error: '账号或密码错误' });
+    res.json({ user: { id: user.id, displayName: user.displayName, role: user.role }, key: user.key });
+  } catch (err) { next(err); }
+});
+
+// ── Protected routes below ──
 router.use(keyAuthMiddleware);
 router.use(requireAdmin);
+
+// ── Set/change admin password ──
+router.put('/password', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+    const hash = await bcrypt.hash(password, 10);
+    await prisma.user.update({ where: { id: req.userId }, data: { passwordHash: hash } });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
 
 // ── Dashboard stats ──
 router.get('/stats', async (_req: Request, res: Response, next: NextFunction) => {

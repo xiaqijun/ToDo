@@ -14,6 +14,7 @@ import adminPageRoutes from './routes/adminPage';
 import { errorHandler } from './middleware/errorHandler';
 import { setupSocket } from './socket';
 import { startReminderScheduler } from './services/reminder';
+import bcrypt from 'bcrypt';
 import { generateKey } from './utils/keyGen';
 
 const prisma = new PrismaClient();
@@ -55,16 +56,19 @@ app.get('/api/health', (_req, res) => {
 app.use(errorHandler);
 
 // First-run admin bootstrap
-prisma.user.count().then(count => {
+prisma.user.count().then(async count => {
   if (count === 0) {
     const key = generateKey();
+    const hash = await bcrypt.hash('admin123', 10);
     prisma.user.create({
-      data: { displayName: 'Admin', key, role: 'admin' },
+      data: { displayName: 'Admin', key, role: 'admin', passwordHash: hash },
     }).then(() => {
-      console.log('======== 初始管理员密钥 ========');
-      console.log(`  Key: ${key}`);
-      console.log('  请妥善保管，此密钥不会再次显示');
-      console.log('================================');
+      console.log('======== 初始管理员 ========');
+      console.log('  账号: Admin');
+      console.log('  密码: admin123');
+      console.log(`  密钥: ${key}`);
+      console.log('  请尽快登录后台修改密码');
+      console.log('============================');
     });
   }
 });
