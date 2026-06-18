@@ -47,13 +47,13 @@ export default function FloatWindow() {
         <div className="flex items-center gap-1 ml-auto">
           {user?.role === 'admin' && (
             <button onClick={() => setShowAdmin(true)}
-              className="text-text-muted hover:text-text-primary text-xs px-1 py-0.5 rounded hover:bg-bg-tertiary transition-colors"
+              className="no-drag text-text-muted hover:text-text-primary text-xs px-1 py-0.5 rounded hover:bg-bg-tertiary transition-colors"
               title="用户管理">
               ⚙️
             </button>
           )}
           <span className="text-[10px] text-text-muted">{user?.displayName}</span>
-          <button onClick={logout} className="text-text-muted hover:text-text-primary text-[10px] px-1.5 py-0.5 rounded hover:bg-bg-tertiary transition-colors">
+          <button onClick={logout} className="no-drag text-text-muted hover:text-text-primary text-[10px] px-1.5 py-0.5 rounded hover:bg-bg-tertiary transition-colors">
             退出
           </button>
         </div>
