@@ -35,12 +35,8 @@ function createWindow() {
   const { width } = primaryDisplay.workAreaSize;
   mainWindow.setPosition(width - 350, 10);
 
-  const isDev = !!process.env.VITE_DEV_SERVER_URL;
-  if (isDev) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL!);
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
-  }
+  const devUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+  mainWindow.loadURL(devUrl);
 
   mainWindow.on('close', (e) => {
     if (!isQuitting) {
